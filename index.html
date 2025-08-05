@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Orientation Fixer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --dark: #3a0ca3;
+            --light: #f8f9fa;
+            --danger: #e63946;
+            --warning: #fca311;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(to right, var(--dark), var(--secondary));
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            position: relative;
+        }
+        
+        .tagline {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            position: relative;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed var(--primary);
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area:hover, .upload-area.dragover {
+            background: #eef2ff;
+            border-color: var(--secondary);
+        }
+        
+        .upload-icon {
+            font-size: 60px;
+            color: var(--primary);
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover .upload-icon {
+            transform: translateY(-5px);
+        }
+        
+        .upload-text {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+        
+        .upload-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .upload-btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: var(--secondary);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+        
+        .upload-btn:hover::after {
+            width: 100%;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        #file-input {
+            display: none;
+        }
+        
+        .file-info {
+            background: #eef2ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .file-info::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: var(--primary);
+        }
+        
+        .file-info.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .file-info-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .file-icon {
+            font-size: 30px;
+            color: var(--primary);
+        }
+        
+        .file-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #2d3748;
+        }
+        
+        .file-stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 100px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #718096;
+        }
+        
+        .action-area {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .action-btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+        
+        .action-btn:hover::after {
+            width: 100%;
+        }
+        
+        .download-btn {
+            background: linear-gradient(to right, var(--success), #2a9d8f);
+            color: white;
+        }
+        
+        .download-btn::after {
+            background: linear-gradient(to right, #2a9d8f, var(--success));
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .reset-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .reset-btn::after {
+            background: #cbd5e0;
+        }
+        
+        .reset-btn:hover {
+            transform: translateY(-3px);
+        }
+        
+        .status {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .status.processing {
+            display: block;
+            background: #e6f7ff;
+            color: var(--primary);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .status.success {
+            display: block;
+            background: #f0fdf4;
+            color: #16a34a;
+            border-left: 4px solid #16a34a;
+        }
+        
+        .status.error {
+            display: block;
+            background: #fef2f2;
+            color: #dc2626;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--primary);
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            transition: transform 0.3s ease;
+            border-top: 3px solid var(--primary);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        }
+        
+        .feature-icon {
+            font-size: 40px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            background: #eef2ff;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+        }
+        
+        .feature-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+        
+        .feature-desc {
+            color: #718096;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        
+        footer {
+            background: #f8f9ff;
+            padding: 20px;
+            text-align: center;
+            color: #718096;
+            font-size: 0.9rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .file-size-info {
+            font-size: 0.9rem;
+            color: #718096;
+            margin-top: 5px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 600px) {
+            .action-area {
+                flex-direction: column;
+            }
+            
+            .file-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            header {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-file-pdf"></i> PDF Orientation Fixer</h1>
+            <p class="tagline">Upload your PDF and we'll automatically fix page orientations</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <p class="upload-text">Drag & drop your PDF here</p>
+                <p class="upload-text">or</p>
+                <button class="upload-btn" id="browse-btn">
+                    <i class="fas fa-folder-open"></i> Browse Files
+                </button>
+                <input type="file" id="file-input" accept=".pdf">
+            </div>
+            
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            
+            <div class="file-info" id="file-info">
+                <div class="file-info-header">
+                    <i class="fas fa-file-pdf file-icon"></i>
+                    <div>
+                        <div class="file-name" id="file-name">document.pdf</div>
+                        <div id="file-size">Size: 0 MB</div>
+                        <div class="file-size-info">Supports files up to 100MB</div>
+                    </div>
+                </div>
+                
+                <div class="file-stats">
+                    <div class="stat">
+                        <div class="stat-value" id="page-count">0</div>
+                        <div class="stat-label">Pages</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="portrait-count">0</div>
+                        <div class="stat-label">Portrait</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="landscape-count">0</div>
+                        <div class="stat-label">Landscape</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="fixed-count">0</div>
+                        <div class="stat-label">Pages Fixed</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status processing" id="processing-status">
+                <div class="spinner"></div>
+                <p>Processing your PDF... This may take a moment for large files</p>
+            </div>
+            
+            <div class="status success" id="success-status">
+                <i class="fas fa-check-circle" style="font-size: 40px; margin-bottom: 15px;"></i>
+                <p>Your PDF has been processed successfully!</p>
+                <p class="file-size-info" id="result-size">Final size: 0 MB</p>
+            </div>
+            
+            <div class="status error" id="error-status">
+                <i class="fas fa-exclamation-circle" style="font-size: 40px; margin-bottom: 15px;"></i>
+                <p id="error-message">An error occurred while processing your file.</p>
+            </div>
+            
+            <div class="action-area">
+                <button class="action-btn download-btn" id="download-btn" disabled>
+                    <i class="fas fa-download"></i> Download Fixed PDF
+                </button>
+                <button class="action-btn reset-btn" id="reset-btn">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <h3 class="feature-title">Auto Orientation</h3>
+                    <p class="feature-desc">Automatically detects and fixes page orientations for each page.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-export"></i>
+                    </div>
+                    <h3 class="feature-title">Large File Support</h3>
+                    <p class="feature-desc">Process PDFs up to 100MB with optimized processing.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3 class="feature-title">Fast Processing</h3>
+                    <p class="feature-desc">Efficient algorithms for quick results even with large documents.</p>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2023 PDF Orientation Fixer | All processing happens locally in your browser - your files are never uploaded</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('upload-area');
+            const fileInput = document.getElementById('file-input');
+            const browseBtn = document.getElementById('browse-btn');
+            const fileInfo = document.getElementById('file-info');
+            const fileName = document.getElementById('file-name');
+            const fileSize = document.getElementById('file-size');
+            const pageCount = document.getElementById('page-count');
+            const portraitCount = document.getElementById('portrait-count');
+            const landscapeCount = document.getElementById('landscape-count');
+            const fixedCount = document.getElementById('fixed-count');
+            const downloadBtn = document.getElementById('download-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const processingStatus = document.getElementById('processing-status');
+            const successStatus = document.getElementById('success-status');
+            const errorStatus = document.getElementById('error-status');
+            const errorMessage = document.getElementById('error-message');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const resultSize = document.getElementById('result-size');
+            
+            let uploadedFile = null;
+            let fixedPdfBytes = null;
+            
+            // Event listeners
+            browseBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+            downloadBtn.addEventListener('click', downloadFixedPdf);
+            resetBtn.addEventListener('click', resetApp);
+            
+            // File selection handler
+            function handleFileSelect(e) {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    processFile(file);
+                } else {
+                    showError('Please select a valid PDF file.');
+                }
+            }
+            
+            // Drag and drop handlers
+            function handleDragOver(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            }
+            
+            function handleDragLeave(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const file = e.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') {
+                    processFile(file);
+                } else {
+                    showError('Please drop a valid PDF file.');
+                }
+            }
+            
+            // Process the uploaded file
+            async function processFile(file) {
+                try {
+                    resetStatus();
+                    uploadedFile = file;
+                    
+                    // Show file info
+                    fileName.textContent = file.name;
+                    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                    fileSize.textContent = `Size: ${fileSizeMB} MB`;
+                    fileInfo.classList.add('show');
+                    
+                    // Show progress bar for large files
+                    if (file.size > 5 * 1024 * 1024) { // 5MB+
+                        progressContainer.style.display = 'block';
+                    }
+                    
+                    // Show processing status
+                    processingStatus.style.display = 'block';
+                    
+                    // Read the file as ArrayBuffer
+                    const arrayBuffer = await file.arrayBuffer();
+                    
+                    // Load the PDF document
+                    const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                    const newPdfDoc = await PDFLib.PDFDocument.create();
+                    
+                    // Copy each page with fixed orientation
+                    const pages = pdfDoc.getPages();
+                    const totalPages = pages.length;
+                    pageCount.textContent = totalPages;
+                    
+                    let portrait = 0;
+                    let landscape = 0;
+                    let fixedPages = 0;
+                    
+                    // Process each page
+                    for (let i = 0; i < totalPages; i++) {
+                        const page = pages[i];
+                        const { width, height } = page.getSize();
+                        
+                        // Count portrait vs landscape
+                        if (width > height) {
+                            landscape++;
+                        } else {
+                            portrait++;
+                        }
+                        
+                        // Create a new page with the same dimensions
+                        const newPage = newPdfDoc.addPage([width, height]);
+                        
+                        // Draw the original page onto the new page
+                        const embeddedPage = await newPdfDoc.embedPage(page);
+                        newPage.drawPage(embeddedPage);
+                        
+                        fixedPages++;
+                        fixedCount.textContent = fixedPages;
+                        
+                        // Update progress
+                        const progress = Math.round(((i + 1) / totalPages) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        
+                        // Update counts
+                        portraitCount.textContent = portrait;
+                        landscapeCount.textContent = landscape;
+                        
+                        // Yield to UI thread to prevent freezing
+                        if (i % 5 === 0) await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                    
+                    // Save the new PDF
+                    fixedPdfBytes = await newPdfDoc.save();
+                    
+                    // Hide processing and show success
+                    processingStatus.style.display = 'none';
+                    successStatus.style.display = 'block';
+                    downloadBtn.disabled = false;
+                    progressContainer.style.display = 'none';
+                    
+                    // Show result size
+                    const resultSizeMB = (fixedPdfBytes.length / 1024 / 1024).toFixed(2);
+                    resultSize.textContent = `Final size: ${resultSizeMB} MB`;
+                    
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                    progressContainer.style.display = 'none';
+                }
+            }
+            
+            // Download fixed PDF
+            function downloadFixedPdf() {
+                if (!fixedPdfBytes) {
+                    showError('No processed PDF available.');
+                    return;
+                }
+                
+                try {
+                    // Create a Blob from the bytes
+                    const blob = new Blob([fixedPdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = url;
+                    downloadLink.download = 'fixed-' + uploadedFile.name;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    
+                    // Clean up
+                    setTimeout(() => {
+                        document.body.removeChild(downloadLink);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (error) {
+                    showError('Error downloading file: ' + error.message);
+                }
+            }
+            
+            // Reset the application
+            function resetApp() {
+                fileInput.value = '';
+                fileInfo.classList.remove('show');
+                downloadBtn.disabled = true;
+                resetStatus();
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+                uploadedFile = null;
+                fixedPdfBytes = null;
+            }
+            
+            // Reset status messages
+            function resetStatus() {
+                processingStatus.style.display = 'none';
+                successStatus.style.display = 'none';
+                errorStatus.style.display = 'none';
+            }
+            
+            // Show error message
+            function showError(message) {
+                resetStatus();
+                errorMessage.textContent = message;
+                errorStatus.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
